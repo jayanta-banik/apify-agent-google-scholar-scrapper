@@ -1,0 +1,2 @@
+apify ~= 4.0
+selenium ~= 4.36

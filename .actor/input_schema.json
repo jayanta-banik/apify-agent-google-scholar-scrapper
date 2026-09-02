@@ -1,0 +1,75 @@
+{
+    "title": "Google Scholar Profile Scraper",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "searches": {
+            "title": "People to look up",
+            "type": "array",
+            "description": "List of people to find on Google Scholar. Each item needs a `name` and optionally an `affiliation` (university, lab, company) to disambiguate.",
+            "editor": "json",
+            "prefill": [
+                { "name": "Geoffrey Hinton", "affiliation": "University of Toronto" },
+                { "name": "Yann LeCun", "affiliation": "New York University" }
+            ],
+            "default": []
+        },
+        "profileUrls": {
+            "title": "Profile URLs (skip search)",
+            "type": "array",
+            "description": "Google Scholar citation profile URLs to scrape directly, e.g. https://scholar.google.com/citations?user=XXXX. These skip the Google search step entirely.",
+            "editor": "stringList",
+            "default": []
+        },
+        "maxPublications": {
+            "title": "Max publications per profile",
+            "type": "integer",
+            "description": "How many publications to load per profile. Scholar loads 20 at a time; the actor clicks 'Show more' until this many are loaded.",
+            "default": 100,
+            "minimum": 1,
+            "maximum": 1000
+        },
+        "keywordTopN": {
+            "title": "Research domain keywords",
+            "type": "integer",
+            "description": "How many keywords to extract from the latest publication year's titles and venues.",
+            "default": 6,
+            "minimum": 0,
+            "maximum": 25
+        },
+        "timeoutSeconds": {
+            "title": "Page timeout (seconds)",
+            "type": "integer",
+            "description": "How long to wait for each page to load before giving up.",
+            "default": 20,
+            "minimum": 5,
+            "maximum": 120
+        },
+        "proxyConfiguration": {
+            "title": "Proxy configuration",
+            "type": "object",
+            "description": "Google blocks datacenter traffic aggressively. RESIDENTIAL proxies are strongly recommended.",
+            "editor": "proxy",
+            "default": {
+                "useApifyProxy": true,
+                "apifyProxyGroups": ["RESIDENTIAL"]
+            }
+        },
+        "headless": {
+            "title": "Headless browser",
+            "type": "boolean",
+            "description": "Run Chrome headless. Turn off only when running locally to debug CAPTCHAs.",
+            "default": true,
+            "sectionCaption": "Advanced"
+        },
+        "maxRetriesPerTarget": {
+            "title": "Retries per target",
+            "type": "integer",
+            "description": "How many times to retry a person/profile with a fresh browser and proxy session if Google blocks the request.",
+            "default": 3,
+            "minimum": 1,
+            "maximum": 10,
+            "sectionCaption": "Advanced"
+        }
+    }
+}

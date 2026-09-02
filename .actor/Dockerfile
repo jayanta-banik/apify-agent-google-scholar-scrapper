@@ -1,0 +1,18 @@
+FROM apify/actor-python-selenium:3.13
+
+COPY requirements.txt ./
+
+RUN echo "Python version:" \
+ && python --version \
+ && echo "Pip version:" \
+ && pip --version \
+ && echo "Installing dependencies:" \
+ && pip install -r requirements.txt \
+ && echo "All installed Python packages:" \
+ && pip freeze
+
+COPY . ./
+
+RUN python -m compileall -q src/
+
+CMD ["python", "-m", "src"]

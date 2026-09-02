@@ -1,0 +1,29 @@
+{
+    "actorSpecification": 1,
+    "fields": {},
+    "views": {
+        "overview": {
+            "title": "Overview",
+            "transformation": {
+                "fields": [
+                    "status",
+                    "name",
+                    "affiliation",
+                    "profileUrl",
+                    "scholarId",
+                    "citedBy",
+                    "hIndex",
+                    "publicationsCount",
+                    "latestPublicationYear",
+                    "latestPublicationYearDomains"
+                ]
+            },
+            "display": {
+                "component": "table",
+                "properties": {
+                    "profileUrl": { "label": "Profile", "format": "link" }
+                }
+            }
+        }
+    }
+}

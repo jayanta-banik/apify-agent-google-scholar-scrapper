@@ -1,0 +1,16 @@
+{
+    "actorSpecification": 1,
+    "name": "google-scholar-scraper",
+    "title": "Google Scholar Profile Scraper",
+    "description": "Finds Google Scholar profiles via Google 'I'm Feeling Lucky' and scrapes their publications.",
+    "version": "0.1",
+    "buildTag": "latest",
+    "meta": {
+        "templateId": "python-selenium"
+    },
+    "input": "./input_schema.json",
+    "dockerfile": "./Dockerfile",
+    "storages": {
+        "dataset": "./dataset_schema.json"
+    }
+}
