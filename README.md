@@ -12,7 +12,10 @@ profile with Selenium: metrics, publications, and the topics they are working on
 2. If Google serves a results page anyway (it sometimes ignores `btnI`), the actor falls
    back to the first `scholar.google.com/citations?user=...` link on that page.
 3. On the profile it clicks **Show more** until `maxPublications` rows are loaded, then
-   parses the profile header, the citation metrics table, and every publication row.
+   parses the profile header and every publication row. Scholar's article table is sorted
+   by citation count by default; the actor scrapes that ordering, then re-loads the table
+   sorted by year (`sortby=pubdate`, exactly what the **Year** column header links to) and
+   scrapes it again, so both orderings are returned.
 4. Each person becomes one dataset item.
 
 ## Input
@@ -21,8 +24,8 @@ profile with Selenium: metrics, publications, and the topics they are working on
 | --- | --- | --- |
 | `searches` | array | People to look up: `{ "name": "...", "affiliation": "..." }` (plain name strings also work). |
 | `profileUrls` | array | Scholar profile URLs to scrape directly, skipping the search step. |
-| `maxPublications` | integer | Publications to load per profile (default `100`). |
-| `keywordTopN` | integer | Keywords to extract from the latest year's titles (default `6`). |
+| `maxPublications` | integer | Publications to load per profile, per ordering (default `100`). |
+| `keywordTopN` | integer | `semanticDomains` keywords to extract from the latest year's titles (default `6`). |
 | `timeoutSeconds` | integer | Per-page load timeout (default `20`). |
 | `proxyConfiguration` | object | Apify proxy settings. **Residential is strongly recommended.** |
 | `headless` | boolean | Run Chrome headless (default `true`). |
@@ -49,24 +52,37 @@ One item per person:
   "searchQuery": "Konstantinos Karydis UC Riverside google scholar",
   "foundVia": "lucky",
   "status": "ok",
-  "profileUrl": "https://scholar.google.com/citations?user=4Urexvi1sIcC&hl=en",
+  "profileUrl": "https://scholar.google.com/citations?user=4Urexvi1sIcC&hl=en&view_op=list_works",
   "scholarId": "4Urexvi1sIcC",
   "name": "Konstantinos Karydis",
   "affiliation": "University of California, Riverside",
-  "interests": ["Robotics"],
-  "citedBy": 2142, "citedBySince": 1743,
-  "hIndex": 23, "i10Index": 54,
-  "publicationsCount": 40,
+  "publicationDomains": ["Robotics"],
+  "semanticDomains": ["soil apparent", "electrical conductivity", "autonomous", "robot"],
   "latestPublicationYear": 2026,
-  "latestPublicationYearDomains": ["koopman operators", "learning robotics", "robot"],
+  "publicationsByYear": [
+    { "title": "...", "year": 2026, "citations": 63, "authors": ["..."], "venue": "...", "url": "..." }
+  ],
+  "publicationsByCitations": [
+    { "title": "...", "year": 2018, "citations": 288, "authors": ["..."], "venue": "...", "url": "..." }
+  ],
   "recentPublications": [],
   "topCitedLast3Years": [],
-  "publications": [
-    { "title": "...", "year": 2025, "citations": 4, "authors": ["..."], "venue": "...", "url": "..." }
-  ],
+  "i10Index": 54,
   "scrapedAt": "2026-09-02T15:48:42+00:00"
 }
 ```
+
+Two distinctions worth keeping straight:
+
+- **`publicationDomains`** are the interest labels the researcher set on their own Scholar
+  profile ("Robotics", "Machine Learning"). They come straight off the page.
+- **`semanticDomains`** are inferred by the actor from the titles of the latest
+  publication year, so they describe what the person is working on *now* rather than how
+  they describe themselves.
+
+`publicationsByYear` is newest first, with undated entries last; `publicationsByCitations`
+preserves Scholar's own most-cited-first ordering. Both carry per-publication citation
+counts and cover the same set of papers.
 
 `status` is `ok`, `not_found`, `timeout`, or `failed` (with a `message`). Rows always echo
 the input fields, so results can be joined back to the request list.
@@ -97,8 +113,11 @@ fetches the matching chromedriver automatically.
 
 ## Notes
 
-- Keyword extraction is a dependency-free frequency + position ranker over publication
-  titles ([`src/keywords.py`](src/keywords.py)). The prototype used KeyBERT, which pulls a
-  ~2 GB torch/sentence-transformers stack into the image for a handful of short strings.
+- `semanticDomains` come from a dependency-free frequency + position ranker over
+  publication titles ([`src/keywords.py`](src/keywords.py)). The prototype used KeyBERT,
+  which pulls a ~2 GB torch/sentence-transformers stack into the image for a handful of
+  short strings.
+- Scraping both orderings costs one extra page load and one extra pagination pass per
+  profile, so a profile with many publications takes roughly twice as long.
 - Google is the fragile step, not Scholar. Without a residential proxy, expect CAPTCHAs
   once you go past a handful of lookups per IP.

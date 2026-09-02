@@ -67,35 +67,64 @@ def scrape_profile(
     max_publications: int = 100,
     keyword_top_n: int = 6,
 ) -> dict[str, Any]:
-    """Load a Scholar profile and return its metadata, publications and derived analytics."""
-    driver.get(_normalize_profile_url(profile_url))
-    _raise_if_blocked(driver)
-    try:
-        WebDriverWait(driver, timeout_seconds).until(EC.presence_of_element_located((By.CSS_SELECTOR, '#gsc_prf_in')))
-    except TimeoutException:
+    """Load a Scholar profile and return its metadata plus both publication orderings.
+
+    Scholar's article table is sorted by citation count by default; the "Year" column
+    header re-sorts it by publication date (`sortby=pubdate`). Both orderings are scraped
+    so the caller gets the profile's own ranking and a chronological list.
+    """
+    if not _open_publication_list(driver, profile_url, timeout_seconds=timeout_seconds):
         return {
             'status': 'timeout',
             'profileUrl': profile_url,
             'message': 'Timed out while loading the Google Scholar profile page.',
         }
 
-    _expand_publications(driver, max_publications=max_publications, timeout_seconds=timeout_seconds)
-    publications = _extract_publications(driver, max_publications=max_publications)
-    metrics = _extract_metrics(driver)
-
-    return {
+    profile = {
         'status': 'ok',
-        'profileUrl': driver.current_url,
+        'profileUrl': _normalize_profile_url(driver.current_url),
         'scholarId': _scholar_id_from_url(driver.current_url),
         'name': _text(driver, '#gsc_prf_in'),
         'affiliation': _text(driver, '.gsc_prf_il'),
-        'interests': [element.text.strip() for element in driver.find_elements(By.CSS_SELECTOR, '#gsc_prf_int a') if element.text.strip()],
+        'publicationDomains': [
+            element.text.strip() for element in driver.find_elements(By.CSS_SELECTOR, '#gsc_prf_int a') if element.text.strip()
+        ],
         'imageUrl': _attribute(driver, '#gsc_prf_pup-img', 'src'),
-        **metrics,
-        'publications': publications,
-        **analyze_publications(publications, keyword_top_n=keyword_top_n),
+        **_extract_metrics(driver),
+    }
+
+    _expand_publications(driver, max_publications=max_publications, timeout_seconds=timeout_seconds)
+    by_citations = _extract_publications(driver, max_publications=max_publications)
+
+    if not _open_publication_list(driver, profile_url, timeout_seconds=timeout_seconds, sort_by_year=True):
+        by_year = _sorted_by_year(by_citations)
+    else:
+        _expand_publications(driver, max_publications=max_publications, timeout_seconds=timeout_seconds)
+        by_year = _sorted_by_year(_extract_publications(driver, max_publications=max_publications))
+
+    return {
+        **profile,
+        'publicationsByYear': by_year,
+        'publicationsByCitations': by_citations,
+        **analyze_publications(by_year, keyword_top_n=keyword_top_n),
         'scrapedAt': datetime.now(timezone.utc).isoformat(),
     }
+
+
+def _open_publication_list(driver, profile_url: str, *, timeout_seconds: int, sort_by_year: bool = False) -> bool:
+    """Load the article table in the requested order, waiting for the profile header."""
+    driver.get(_normalize_profile_url(profile_url, sort_by_year=sort_by_year))
+    _raise_if_blocked(driver)
+    try:
+        WebDriverWait(driver, timeout_seconds).until(EC.presence_of_element_located((By.CSS_SELECTOR, '#gsc_prf_in')))
+    except TimeoutException:
+        return False
+    return True
+
+
+def _sorted_by_year(publications: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Newest first; undated entries (Scholar leaves the year blank) go last."""
+    return sorted(publications, key=lambda publication: (publication.get('year') is not None, publication.get('year') or 0), reverse=True)
 
 
 def analyze_publications(
@@ -104,7 +133,11 @@ def analyze_publications(
     current_year: int | None = None,
     keyword_top_n: int = 6,
 ) -> dict[str, Any]:
-    """Summarize a publication list: recent output, top recent papers, current topics."""
+    """Summarize a publication list: recent output, top recent papers, current topics.
+
+    `semanticDomains` are keywords inferred from the latest year's titles, as opposed to
+    `publicationDomains`, which are the interest labels Scholar shows on the profile.
+    """
     effective_year = current_year or datetime.now(timezone.utc).year
     recent_publications = sorted(
         (
@@ -123,11 +156,10 @@ def analyze_publications(
     latest_year = max((publication['year'] for publication in publications if publication.get('year')), default=None)
 
     return {
-        'publicationsCount': len(publications),
         'recentPublications': recent_publications,
         'topCitedLast3Years': top_cited_last_3_years,
         'latestPublicationYear': latest_year,
-        'latestPublicationYearDomains': _domains_for_year(publications, latest_year, keyword_top_n=keyword_top_n),
+        'semanticDomains': _domains_for_year(publications, latest_year, keyword_top_n=keyword_top_n),
     }
 
 
@@ -200,13 +232,9 @@ def _extract_publications(driver, *, max_publications: int) -> list[dict[str, An
 
 
 def _extract_metrics(driver) -> dict[str, Any]:
-    """Read the Cited by / h-index / i10-index table (all-time and last-5-years columns)."""
-    metrics: dict[str, Any] = {'citedBy': 0, 'citedBySince': 0, 'hIndex': 0, 'hIndexSince': 0, 'i10Index': 0, 'i10IndexSince': 0}
-    label_to_keys = {
-        'citations': ('citedBy', 'citedBySince'),
-        'h-index': ('hIndex', 'hIndexSince'),
-        'i10-index': ('i10Index', 'i10IndexSince'),
-    }
+    """Read the citation metrics table (all-time and last-5-years columns)."""
+    metrics: dict[str, Any] = {'i10Index': 0, 'i10IndexSince': 0}
+    label_to_keys = {'i10-index': ('i10Index', 'i10IndexSince')}
     for row in driver.find_elements(By.CSS_SELECTOR, '#gsc_rsb_st tbody tr'):
         cells = row.find_elements(By.CSS_SELECTOR, 'td')
         if len(cells) < 3:
@@ -237,9 +265,13 @@ def _as_profile_match(url: str, *, title: str = '') -> dict[str, Any] | None:
     return {'profileUrl': _normalize_profile_url(url), 'scholarId': scholar_id, 'resultTitle': title}
 
 
-def _normalize_profile_url(url: str) -> str:
+def _normalize_profile_url(url: str, *, sort_by_year: bool = False) -> str:
     scholar_id = parse_qs(urlparse(url).query).get('user', [''])[0]
-    return f'https://{SCHOLAR_HOST}/citations?user={scholar_id}&hl=en' if scholar_id else url
+    if not scholar_id:
+        return url
+    # `sortby=pubdate` is exactly what the table's "Year" column header links to.
+    sort = '&sortby=pubdate' if sort_by_year else ''
+    return f'https://{SCHOLAR_HOST}/citations?user={scholar_id}&hl=en&view_op=list_works{sort}'
 
 
 def _scholar_id_from_url(url: str) -> str:

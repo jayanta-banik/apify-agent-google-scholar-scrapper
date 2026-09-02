@@ -11,17 +11,19 @@
                     "affiliation",
                     "profileUrl",
                     "scholarId",
-                    "citedBy",
-                    "hIndex",
-                    "publicationsCount",
+                    "publicationDomains",
+                    "semanticDomains",
                     "latestPublicationYear",
-                    "latestPublicationYearDomains"
+                    "publicationsByYear"
                 ]
             },
             "display": {
                 "component": "table",
                 "properties": {
-                    "profileUrl": { "label": "Profile", "format": "link" }
+                    "profileUrl": {
+                        "label": "Profile",
+                        "format": "link"
+                    }
                 }
             }
         }
