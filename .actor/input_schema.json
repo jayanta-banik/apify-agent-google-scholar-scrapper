@@ -9,8 +9,14 @@
             "description": "List of people to find on Google Scholar. Each item needs a `name` and optionally an `affiliation` (university, lab, company) to disambiguate.",
             "editor": "json",
             "prefill": [
-                { "name": "Geoffrey Hinton", "affiliation": "University of Toronto" },
-                { "name": "Yann LeCun", "affiliation": "New York University" }
+                {
+                    "name": "Geoffrey Hinton",
+                    "affiliation": "University of Toronto"
+                },
+                {
+                    "name": "Yann LeCun",
+                    "affiliation": "New York University"
+                }
             ],
             "default": []
         },
@@ -52,7 +58,9 @@
             "editor": "proxy",
             "default": {
                 "useApifyProxy": true,
-                "apifyProxyGroups": ["RESIDENTIAL"]
+                "apifyProxyGroups": [
+                    "RESIDENTIAL"
+                ]
             }
         },
         "headless": {
@@ -71,5 +79,6 @@
             "maximum": 10,
             "sectionCaption": "Advanced"
         }
-    }
+    },
+    "description": "Give the actor a list of researchers (name plus affiliation) or Google Scholar profile URLs. It resolves each person through Google's \"I'm Feeling Lucky\" redirect and returns their profile, publications in two orderings, and the topics they are currently publishing on."
 }

@@ -1,29 +1,186 @@
 {
     "actorSpecification": 1,
-    "fields": {},
+    "fields": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "Google Scholar profile",
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+            "status": {
+                "type": "string",
+                "title": "Status",
+                "description": "Outcome for this target. Only `ok` rows carry profile data.",
+                "enum": ["ok", "not_found", "timeout", "blocked", "failed"]
+            },
+            "message": {
+                "type": "string",
+                "title": "Message",
+                "description": "Why a non-ok row failed."
+            },
+            "inputName": {
+                "type": ["string", "null"],
+                "title": "Input name",
+                "description": "The name as given in the actor input."
+            },
+            "inputAffiliation": {
+                "type": ["string", "null"],
+                "title": "Input affiliation",
+                "description": "The affiliation as given in the actor input."
+            },
+            "inputProfileUrl": {
+                "type": ["string", "null"],
+                "title": "Input profile URL",
+                "description": "Set when the row came from `profileUrls` rather than a search."
+            },
+            "searchQuery": {
+                "type": ["string", "null"],
+                "title": "Search query",
+                "description": "The query built from the input name and affiliation."
+            },
+            "query": {
+                "type": ["string", "null"],
+                "title": "Executed query",
+                "description": "The query actually sent to Google, null when the profile URL was supplied."
+            },
+            "foundVia": {
+                "type": ["string", "null"],
+                "title": "Found via",
+                "description": "`lucky` for the I'm Feeling Lucky redirect, `results_page` for the fallback, `input` when no search ran.",
+                "enum": ["lucky", "results_page", "input", null]
+            },
+            "profileUrl": {
+                "type": "string",
+                "title": "Profile URL",
+                "description": "Canonical Google Scholar citations URL."
+            },
+            "scholarId": {
+                "type": "string",
+                "title": "Scholar ID",
+                "description": "The `user` parameter identifying the profile."
+            },
+            "name": {
+                "type": "string",
+                "title": "Name",
+                "description": "Name as shown on the Scholar profile."
+            },
+            "affiliation": {
+                "type": "string",
+                "title": "Affiliation",
+                "description": "Affiliation line from the Scholar profile."
+            },
+            "imageUrl": {
+                "type": "string",
+                "title": "Photo URL",
+                "description": "Profile photo hosted by Google."
+            },
+            "publicationDomains": {
+                "type": "array",
+                "title": "Publication domains",
+                "description": "Interest labels the researcher set on their own Scholar profile.",
+                "items": { "type": "string" }
+            },
+            "semanticDomains": {
+                "type": "array",
+                "title": "Semantic domains",
+                "description": "Topics inferred from the titles of the latest publication year.",
+                "items": { "type": "string" }
+            },
+            "latestPublicationYear": {
+                "type": ["integer", "null"],
+                "title": "Latest publication year"
+            },
+            "publicationsByYear": {
+                "type": "array",
+                "title": "Publications by year",
+                "description": "Every scraped publication, newest first, undated entries last.",
+                "items": { "$ref": "#/definitions/publication" }
+            },
+            "publicationsByCitations": {
+                "type": "array",
+                "title": "Publications by citations",
+                "description": "The same publications in Scholar's default most-cited-first order.",
+                "items": { "$ref": "#/definitions/publication" }
+            },
+            "recentPublications": {
+                "type": "array",
+                "title": "Recent publications",
+                "description": "Publications from the current and previous calendar year.",
+                "items": { "$ref": "#/definitions/publication" }
+            },
+            "topCitedLast3Years": {
+                "type": "array",
+                "title": "Top cited, last 3 years",
+                "description": "The three most-cited publications from the last three years.",
+                "items": { "$ref": "#/definitions/publication" }
+            },
+            "scrapedAt": {
+                "type": "string",
+                "title": "Scraped at",
+                "format": "date-time"
+            }
+        },
+        "definitions": {
+            "publication": {
+                "type": "object",
+                "properties": {
+                    "title": { "type": "string", "title": "Title" },
+                    "year": { "type": ["integer", "null"], "title": "Year" },
+                    "citations": { "type": "integer", "title": "Citations" },
+                    "authors": { "type": "array", "title": "Authors", "items": { "type": "string" } },
+                    "venue": { "type": "string", "title": "Venue" },
+                    "url": { "type": "string", "title": "URL" }
+                }
+            }
+        }
+    },
     "views": {
         "overview": {
             "title": "Overview",
+            "description": "One row per researcher.",
             "transformation": {
                 "fields": [
                     "status",
                     "name",
                     "affiliation",
-                    "profileUrl",
-                    "scholarId",
                     "publicationDomains",
                     "semanticDomains",
                     "latestPublicationYear",
-                    "publicationsByYear"
+                    "profileUrl",
+                    "scholarId"
                 ]
             },
             "display": {
                 "component": "table",
                 "properties": {
-                    "profileUrl": {
-                        "label": "Profile",
-                        "format": "link"
-                    }
+                    "status": { "label": "Status" },
+                    "name": { "label": "Name" },
+                    "affiliation": { "label": "Affiliation" },
+                    "publicationDomains": { "label": "Publication domains" },
+                    "semanticDomains": { "label": "Semantic domains" },
+                    "latestPublicationYear": { "label": "Latest year" },
+                    "profileUrl": { "label": "Profile", "format": "link" },
+                    "scholarId": { "label": "Scholar ID" }
+                }
+            }
+        },
+        "publications": {
+            "title": "Publications by year",
+            "description": "One row per publication, newest first.",
+            "transformation": {
+                "fields": ["name", "scholarId", "publicationsByYear"],
+                "unwind": ["publicationsByYear"]
+            },
+            "display": {
+                "component": "table",
+                "properties": {
+                    "name": { "label": "Researcher" },
+                    "scholarId": { "label": "Scholar ID" },
+                    "title": { "label": "Title" },
+                    "year": { "label": "Year" },
+                    "citations": { "label": "Citations" },
+                    "authors": { "label": "Authors" },
+                    "venue": { "label": "Venue" },
+                    "url": { "label": "Link", "format": "link" }
                 }
             }
         }
