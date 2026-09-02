@@ -67,7 +67,6 @@ One item per person:
   ],
   "recentPublications": [],
   "topCitedLast3Years": [],
-  "i10Index": 54,
   "scrapedAt": "2026-09-02T15:48:42+00:00"
 }
 ```

@@ -90,7 +90,6 @@ def scrape_profile(
             element.text.strip() for element in driver.find_elements(By.CSS_SELECTOR, '#gsc_prf_int a') if element.text.strip()
         ],
         'imageUrl': _attribute(driver, '#gsc_prf_pup-img', 'src'),
-        **_extract_metrics(driver),
     }
 
     _expand_publications(driver, max_publications=max_publications, timeout_seconds=timeout_seconds)
@@ -229,22 +228,6 @@ def _extract_publications(driver, *, max_publications: int) -> list[dict[str, An
             },
         )
     return publications
-
-
-def _extract_metrics(driver) -> dict[str, Any]:
-    """Read the citation metrics table (all-time and last-5-years columns)."""
-    metrics: dict[str, Any] = {'i10Index': 0, 'i10IndexSince': 0}
-    label_to_keys = {'i10-index': ('i10Index', 'i10IndexSince')}
-    for row in driver.find_elements(By.CSS_SELECTOR, '#gsc_rsb_st tbody tr'):
-        cells = row.find_elements(By.CSS_SELECTOR, 'td')
-        if len(cells) < 3:
-            continue
-        keys = label_to_keys.get(cells[0].text.strip().lower())
-        if keys is None:
-            continue
-        metrics[keys[0]] = _to_int(cells[1].text) or 0
-        metrics[keys[1]] = _to_int(cells[2].text) or 0
-    return metrics
 
 
 def _first_scholar_result(driver) -> dict[str, Any] | None:
